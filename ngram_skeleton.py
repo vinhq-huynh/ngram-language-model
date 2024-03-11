@@ -152,6 +152,56 @@ class NgramModel(object):
 # Part 2: N-Gram Model with Interpolation
 ################################################################################
 
+class NgramModelWithInterpolation(NgramModel):
+    ''' An n-gram model with interpolation '''
+
+    def __init__(self, n, k):
+        self.n = n
+        self.k = k
+        self.ngrams = []
+        self.vocab = []
+        self.w = 1 / (self.n + 1)
+
+    def get_vocab(self):
+        ''' Returns the set of characters in the vocab '''
+        print(self.vocab)
+        return self.vocab
+
+    def update(self, text):
+        ''' Updates the model n-grams based on text '''
+        for char in text:
+            if char not in self.vocab:
+                self.vocab.append(char)
+
+        for m in range(0, self.n+1):
+            new_ngrams = ngrams(m, text)
+            try:
+                self.ngrams[m] += new_ngrams
+            except:
+                self.ngrams.append([])
+                self.ngrams[m] += new_ngrams
+        
+            
+    def prob_helper(self, context, char, m):
+        ''' Returns the probability of char appearing after context '''
+        
+        count = 0
+        total = 0
+        for ngram in self.ngrams[m]:
+            if ngram[0] == context:
+                total += 1
+                if ngram[1] == char:
+                    count += 1
+        try:
+            return (count + self.k) / (total + (self.k * len(self.vocab)))
+        except:
+            return 1 / len(self.vocab)
+    
+    def prob(self, context, char):
+        accum = 0
+        for m in range(self.n, -1, -1):
+            accum += (self.w * self.prob_helper(context[(self.n-m):], char, m))
+        return accum
 
 ################################################################################
 # Part 3: Your N-Gram Model Experimentation
@@ -205,7 +255,16 @@ if __name__ == '__main__':
     print(m.perplexity('abca'))
     print(m.perplexity('abcda'))
 
+    print("Part 3. Testing perplexity of some examples from the prompt using interpolation method.")
+    m = NgramModelWithInterpolation(1, 0)
+    m.update('abab')
+    m.update('abcd')
+    print(m.perplexity('abcd'))
+    print(m.perplexity('abca'))
+    print(m.perplexity('abcda'))
+
     print("Part 3. input file: cities_test.txt. output file: test_labels.txt")
+    #embed = discord.Embed()
     classifier = ClassifyCity(n=3, k=1)
     classifier.train('train')
     classifier.classify_test_file('cities_test.txt', 'test_labels.txt')
