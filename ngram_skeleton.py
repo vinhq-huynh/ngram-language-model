@@ -263,7 +263,7 @@ if __name__ == '__main__':
     print(m.perplexity('abca'))
     print(m.perplexity('abcda'))
 
-    print("Part 3. input file: cities_test.txt. output file: test_labels.txt")
+    print("Part 4. input file: cities_test.txt. output file: test_labels.txt")
     #embed = discord.Embed()
     classifier = ClassifyCity(n=3, k=1)
     classifier.train('train')
