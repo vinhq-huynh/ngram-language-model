@@ -31,10 +31,10 @@ def ngrams(n, text):
     return ngrams
 
 
-# Example usage
-text = "hello world"
-n = 3
-print(ngrams(n, text))
+# # Example usage
+# text = "hello world"
+# n = 3
+# print(ngrams(n, text))
 
 
 def create_ngram_model(model_class, path, n=2, k=0):
@@ -128,24 +128,43 @@ class NgramModel(object):
                 context = context[1:] + char  # Update the context
         return result
 
+#
+#    def perplexity(self, text):
+#        """ Returns the perplexity of text based on the n-grams learned by
+#        this model """
+#        # Pad the text with '~' characters
+#        text = start_pad(self.n) + text
+#        # Calculate perplexity using logs to avoid underflow
+#        log_prob_sum = 0
+#        for i in range(self.n, len(text)):
+#            context = text[i - self.n:i]
+#            char = text[i]
+#            prob = self.prob(context, char)
+#            if prob > 0:
+#                log_prob_sum += math.log(prob)
+#            else:
+#                return float('inf')  # Return positive infinity if any zero probabilities are encountered
+#        # Normalize by the number of characters to get perplexity
+#        perplexity = math.exp(-log_prob_sum / len(text))
+#        return perplexity
+#
+
     def perplexity(self, text):
-        """ Returns the perplexity of text based on the n-grams learned by
-        this model """
-        # Pad the text with '~' characters
-        text = start_pad(self.n) + text
-        # Calculate perplexity using logs to avoid underflow
-        log_prob_sum = 0
-        for i in range(self.n, len(text)):
-            context = text[i - self.n:i]
-            char = text[i]
-            prob = self.prob(context, char)
-            if prob > 0:
-                log_prob_sum += math.log(prob)
-            else:
-                return float('inf')  # Return positive infinity if any zero probabilities are encountered
-        # Normalize by the number of characters to get perplexity
-        perplexity = math.exp(-log_prob_sum / len(text))
-        return perplexity
+        ''' Returns the perplexity of text based on the n-grams learned by
+            this model '''
+        context = start_pad(self.n)
+
+        accum = 1
+        for char in text:
+            p = self.prob(context, char)
+            if p == 0:
+                return float('inf')
+            accum = accum * (1 / p)
+            if self.n > 0:
+                context = context[1:] + char
+        #print(math.pow(accum, 1/len(text)))
+        return math.pow(accum, 1/len(text))
+
 
 
 ################################################################################
@@ -164,7 +183,6 @@ class NgramModelWithInterpolation(NgramModel):
 
     def get_vocab(self):
         ''' Returns the set of characters in the vocab '''
-        print(self.vocab)
         return self.vocab
 
     def update(self, text):
@@ -243,27 +261,70 @@ class ClassifyCity:
 
 
 if __name__ == '__main__':
-    print("Part 1: Generating Shakespeare with no smoothing, ngram order 7:")
-    m = create_ngram_model(NgramModel, 'shakespeare_input.txt', 7, 0)
-    print(m.random_text(250))
+    print("Part 0: Generating N-grams")
+    print(ngrams(1, 'abc'))
+    print(ngrams(2, 'abc'), end="\n\n")
 
-    print("Part 2. Testing perplexity of some examples from the prompt")
+    print("Part 1: Creating an N-Gram Model")
+    m = NgramModel(1, 0)
+    m.update('abab')
+    print(m.get_vocab())
+    m.update('abcd')
+    print(m.get_vocab())
+    print(m.prob('a', 'b'))
+    print(m.prob('~', 'c'))
+    print(m.prob('b', 'c'))
+
+    m = NgramModel(0,0)
+    m.update('abab')
+    m.update('abcd')
+    random.seed(1)
+    print([m.random_char('') for i in range(25)], end="\n\n")
+
+    
+    print("Generating Shakespeare with no smoothing", end="\n\n")
+    m = create_ngram_model(NgramModel, 'shakespeare_input.txt', 3, 0)
+    print(m.random_text(250), end="\n" + 50*"~" + 5*"\n")
+
+    m = create_ngram_model(NgramModel, 'shakespeare_input.txt', 4, 0)
+    print(m.random_text(250), end="\n" + 50*"~" + 5*"\n")
+
+    m = create_ngram_model(NgramModel, 'shakespeare_input.txt', 7, 0)
+    print(m.random_text(250), end="\n" + 50*"~" + 5*"\n")
+
+
+    print("Part 2: Perplexity, Smoothing, and Interpolation")
     m = NgramModel(1, 0)
     m.update('abab')
     m.update('abcd')
     print(m.perplexity('abcd'))
     print(m.perplexity('abca'))
-    print(m.perplexity('abcda'))
+    print(m.perplexity('abcda'), end="\n\n")
 
-    print("Part 3. Testing perplexity of some examples from the prompt using interpolation method.")
-    m = NgramModelWithInterpolation(1, 0)
+    print("Smoothing")
+    m = NgramModel(1, 1)
     m.update('abab')
     m.update('abcd')
-    print(m.perplexity('abcd'))
-    print(m.perplexity('abca'))
-    print(m.perplexity('abcda'))
+    print(m.prob('a', 'a'))
+    print(m.prob('a', 'b'))
+    print(m.prob('c', 'd'))
+    print(m.prob('d', 'a'), end="\n\n")
 
-    print("Part 4. input file: cities_test.txt. output file: test_labels.txt")
+    print("Interpolation")
+    m = NgramModelWithInterpolation(1, 0)
+    m.update('abab')
+    print(m.prob('a', 'a'))
+    print(m.prob('a', 'b'), end="\n")
+
+    m = NgramModelWithInterpolation(2, 1)
+    m.update('abab')
+    m.update('abcd')
+    print(m.prob('~a', 'b'))
+    print(m.prob('ba', 'b'))
+    print(m.prob('~c', 'd'))
+    print(m.prob('bc', 'd'), end="\n")
+    
+    print("Part 3. input file: cities_test.txt. output file: test_labels.txt")
     #embed = discord.Embed()
     classifier = ClassifyCity(n=3, k=1)
     classifier.train('train')
